@@ -1,21 +1,12 @@
-import streamlit as st
-import pandas as pd
-import pickle
-import matplotlib.pyplot as plt
-import numpy as np
-
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-import shap
-
+# ===================== PATH SETUP =====================
 import os
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-
-
-# PAGE CONFIG (MUST BE FIRST)
+# ===================== STREAMLIT CONFIG (FIRST) =====================
+import streamlit as st
 
 st.set_page_config(
     page_title="Customer Churn Analytics Dashboard",
@@ -23,21 +14,39 @@ st.set_page_config(
     layout="wide"
 )
 
+# ===================== IMPORTS =====================
+import pandas as pd
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
 
-# LOAD MODELS & SCALER
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-log_model = pickle.load(open("models/Logistic_model.pkl", "rb"))
-rf_model = pickle.load(open("models/RandomForest_model.pkl", "rb"))
-xgb_model = pickle.load(open("models/XGBoost_model.pkl", "rb"))
-scaler = pickle.load(open("models/scaler.pkl", "rb"))
+# ===================== LOAD MODELS =====================
+log_model = pickle.load(
+    open(os.path.join(BASE_DIR, "models", "Logistic_model.pkl"), "rb")
+)
 
+rf_model = pickle.load(
+    open(os.path.join(BASE_DIR, "models", "RandomForest_model.pkl"), "rb")
+)
 
-# LOAD DATA FOR MODEL SELECTION
+xgb_model = pickle.load(
+    open(os.path.join(BASE_DIR, "models", "XGBoost_model.pkl"), "rb")
+)
 
+scaler = pickle.load(
+    open(os.path.join(BASE_DIR, "models", "scaler.pkl"), "rb")
+)
+
+# ===================== LOAD DATA =====================
 from src.preprocess import preprocess_data
 
-X_train, X_test, y_train, y_test, _ = preprocess_data("data/churn.csv")
+X_train, X_test, y_train, y_test, _ = preprocess_data(
+    os.path.join(BASE_DIR, "data", "churn.csv")
+)
 
+# ===================== MODEL SELECTION =====================
 model_dict = {
     "Logistic Regression": log_model,
     "Random Forest": rf_model,
@@ -52,9 +61,7 @@ for name, m in model_dict.items():
 best_model_name = max(roc_scores, key=roc_scores.get)
 model = model_dict[best_model_name]
 
-
-# HEADER
-
+# ===================== HEADER =====================
 st.title(" Customer Churn Analytics Dashboard")
 st.write("End-to-end ML system with prediction, analytics, and explainability")
 
@@ -63,9 +70,7 @@ st.success(
     f"(ROC-AUC = {roc_scores[best_model_name]:.2f})"
 )
 
-
-# TABS
-
+# ===================== TABS =====================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔮 Single Prediction",
     "📈 Feature Importance",
@@ -74,9 +79,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔎 Explainability (SHAP)"
 ])
 
-
-# TAB 1: SINGLE PREDICTION
-
+# ===================== TAB 1: SINGLE PREDICTION =====================
 with tab1:
     st.subheader(" Predict Churn for a Single Customer")
 
@@ -111,25 +114,19 @@ with tab1:
     if st.button("🚀 Predict Churn"):
         scaled = scaler.transform(input_data)
         prob = model.predict_proba(scaled)[0][1]
-        pred = 1 if prob >= 0.5 else 0
 
-        if pred == 1:
+        if prob >= 0.5:
             st.error(f"⚠️ High Risk of Churn ({prob*100:.2f}%)")
         else:
             st.success(f"✅ Low Risk of Churn ({prob*100:.2f}%)")
 
-
-# TAB 2: FEATURE IMPORTANCE
-
+# ===================== TAB 2: FEATURE IMPORTANCE =====================
 with tab2:
     st.subheader("📈 Feature Importance (Random Forest)")
 
-    feature_names = input_data.columns
-    importances = rf_model.feature_importances_
-
     imp_df = pd.DataFrame({
-        "Feature": feature_names,
-        "Importance": importances
+        "Feature": input_data.columns,
+        "Importance": rf_model.feature_importances_
     }).sort_values(by="Importance", ascending=False)
 
     st.dataframe(imp_df)
@@ -137,48 +134,27 @@ with tab2:
     fig, ax = plt.subplots()
     ax.barh(imp_df["Feature"], imp_df["Importance"])
     ax.invert_yaxis()
-    ax.set_title("Top Features Influencing Churn")
     st.pyplot(fig)
 
-
-# TAB 3: BULK PREDICTION
-
+# ===================== TAB 3: BULK PREDICTION =====================
 with tab3:
-    st.subheader("📥 Bulk Customer Churn Prediction")
+    st.subheader("📥 Bulk Prediction")
 
-    file = st.file_uploader("Upload CSV file", type=["csv"])
+    file = st.file_uploader("Upload CSV", type=["csv"])
 
-    if file is not None:
+    if file:
         df = pd.read_csv(file)
-        st.dataframe(df.head())
-
         df_encoded = pd.get_dummies(df, drop_first=True)
-        df_encoded = df_encoded.reindex(
-            columns=input_data.columns,
-            fill_value=0
-        )
+        df_encoded = df_encoded.reindex(columns=input_data.columns, fill_value=0)
 
         df_scaled = scaler.transform(df_encoded)
         df["Churn_Prediction"] = model.predict(df_scaled)
         df["Churn_Probability"] = model.predict_proba(df_scaled)[:, 1]
 
-        st.success("✅ Bulk prediction completed")
         st.dataframe(df.head())
 
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "⬇️ Download Predictions",
-            csv,
-            "churn_predictions.csv",
-            "text/csv"
-        )
-
-
-# TAB 4: MODEL COMPARISON
-
+# ===================== TAB 4: MODEL COMPARISON =====================
 with tab4:
-    st.subheader("🧪 Model Performance Comparison")
-
     results = []
 
     for name, m in model_dict.items():
@@ -194,18 +170,15 @@ with tab4:
 
     results_df = pd.DataFrame(results)
     st.dataframe(results_df)
-
     st.bar_chart(results_df.set_index("Model")["ROC-AUC"])
 
-    st.success(f"🏆 Best Model Selected Automatically: **{best_model_name}**")
-
-
-# TAB 5: SHAP EXPLAINABILITY
-
+# ===================== TAB 5: SHAP =====================
 with tab5:
-    st.subheader("🔎 Model Explainability (SHAP)")
+    st.subheader("🔎 Explainability (SHAP)")
 
     if best_model_name in ["Random Forest", "XGBoost"]:
+        import shap
+
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(X_test)
 
@@ -215,19 +188,13 @@ with tab5:
             columns=["Mean |SHAP Value|"]
         ).sort_values(by="Mean |SHAP Value|", ascending=False)
 
-        st.write("Global Feature Importance based on SHAP values")
         st.dataframe(shap_df)
         st.bar_chart(shap_df)
 
     else:
-        st.info(
-            "SHAP explainability is best supported for tree-based models "
-            "(Random Forest and XGBoost)."
-        )
+        st.info("SHAP works best with tree-based models.")
 
-
-# FOOTER
-
+# ===================== FOOTER =====================
 st.write("---")
 st.markdown(
     "**Developed by:** Vicky Kumar Singh  \n"
