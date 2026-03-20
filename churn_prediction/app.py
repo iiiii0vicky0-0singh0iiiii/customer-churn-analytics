@@ -1,11 +1,11 @@
-# ===================== PATH SETUP =====================
+
 import os
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-# ===================== STREAMLIT CONFIG (FIRST) =====================
+
 import streamlit as st
 
 st.set_page_config(
@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ===================== IMPORTS =====================
+
 import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ import numpy as np
 
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-# ===================== LOAD MODELS =====================
+
 log_model = pickle.load(
     open(os.path.join(BASE_DIR, "models", "Logistic_model.pkl"), "rb")
 )
@@ -39,14 +39,14 @@ scaler = pickle.load(
     open(os.path.join(BASE_DIR, "models", "scaler.pkl"), "rb")
 )
 
-# ===================== LOAD DATA =====================
+
 from src.preprocess import preprocess_data
 
 X_train, X_test, y_train, y_test, _ = preprocess_data(
     os.path.join(BASE_DIR, "data", "churn.csv")
 )
 
-# ===================== MODEL SELECTION =====================
+
 model_dict = {
     "Logistic Regression": log_model,
     "Random Forest": rf_model,
@@ -61,7 +61,7 @@ for name, m in model_dict.items():
 best_model_name = max(roc_scores, key=roc_scores.get)
 model = model_dict[best_model_name]
 
-# ===================== HEADER =====================
+
 st.title(" Customer Churn Analytics Dashboard")
 st.write("End-to-end ML system with prediction, analytics, and explainability")
 
@@ -70,7 +70,7 @@ st.success(
     f"(ROC-AUC = {roc_scores[best_model_name]:.2f})"
 )
 
-# ===================== TABS =====================
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔮 Single Prediction",
     "📈 Feature Importance",
@@ -79,7 +79,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔎 Explainability (SHAP)"
 ])
 
-# ===================== TAB 1: SINGLE PREDICTION =====================
+
 with tab1:
     st.subheader(" Predict Churn for a Single Customer")
 
@@ -120,7 +120,7 @@ with tab1:
         else:
             st.success(f"✅ Low Risk of Churn ({prob*100:.2f}%)")
 
-# ===================== TAB 2: FEATURE IMPORTANCE =====================
+
 with tab2:
     st.subheader("📈 Feature Importance (Random Forest)")
 
@@ -136,7 +136,6 @@ with tab2:
     ax.invert_yaxis()
     st.pyplot(fig)
 
-# ===================== TAB 3: BULK PREDICTION =====================
 with tab3:
     st.subheader("📥 Bulk Prediction")
 
@@ -153,7 +152,7 @@ with tab3:
 
         st.dataframe(df.head())
 
-# ===================== TAB 4: MODEL COMPARISON =====================
+
 with tab4:
     results = []
 
@@ -172,7 +171,7 @@ with tab4:
     st.dataframe(results_df)
     st.bar_chart(results_df.set_index("Model")["ROC-AUC"])
 
-# ===================== TAB 5: SHAP =====================
+
 with tab5:
     st.subheader("🔎 Explainability (SHAP)")
 
@@ -194,7 +193,7 @@ with tab5:
     else:
         st.info("SHAP works best with tree-based models.")
 
-# ===================== FOOTER =====================
+
 st.write("---")
 st.markdown(
     "**Developed by:** Vicky Kumar Singh  \n"
